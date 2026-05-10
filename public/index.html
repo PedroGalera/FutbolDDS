@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestión de Fútbol - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  </head>
+  <body class="bg-gray-50">
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Navbar -->
+    <nav class="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
+      <div class="container mx-auto px-4 py-4">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-soccer-ball text-white text-2xl"></i>
+            <h1 class="text-white text-2xl font-bold">Futbol API</h1>
+          </div>
+          <ul class="flex gap-6">
+            <li>
+              <a
+                href="#"
+                class="nav-link text-white hover:text-blue-200 transition font-semibold"
+                data-section="dashboard"
+              >
+                <i class="fas fa-home"></i> Dashboard
+              </a>
+            </li>
+            <li>
+              <a
+                href="#"
+                class="nav-link text-white hover:text-blue-200 transition font-semibold"
+                data-section="jugadores"
+              >
+                <i class="fas fa-users"></i> Jugadores
+              </a>
+            </li>
+            <li>
+              <a
+                href="#"
+                class="nav-link text-white hover:text-blue-200 transition font-semibold"
+                data-section="equipos"
+              >
+                <i class="fas fa-shield"></i> Equipos
+              </a>
+            </li>
+            <li>
+              <a
+                href="#"
+                class="nav-link text-white hover:text-blue-200 transition font-semibold"
+                data-section="posiciones"
+              >
+                <i class="fas fa-table"></i> Posiciones
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8">
+      <!-- Dashboard Section -->
+      <section id="dashboard" class="section-content">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Dashboard</h2>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-600">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-gray-500 text-sm font-semibold">Total Equipos</p>
+                <p class="text-3xl font-bold text-gray-800 mt-2">
+                  <span id="total-equipos">0</span>
+                </p>
+              </div>
+              <i class="fas fa-shield text-blue-600 text-3xl opacity-20"></i>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-600">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-gray-500 text-sm font-semibold">Total Jugadores</p>
+                <p class="text-3xl font-bold text-gray-800 mt-2">
+                  <span id="total-jugadores">0</span>
+                </p>
+              </div>
+              <i class="fas fa-users text-green-600 text-3xl opacity-20"></i>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-600">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-gray-500 text-sm font-semibold">Total Entrenadores</p>
+                <p class="text-3xl font-bold text-gray-800 mt-2">
+                  <span id="total-entrenadores">0</span>
+                </p>
+              </div>
+              <i class="fas fa-chalkboard-user text-purple-600 text-3xl opacity-20"></i>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-600">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-gray-500 text-sm font-semibold">Total Partidos</p>
+                <p class="text-3xl font-bold text-gray-800 mt-2">
+                  <span id="total-partidos">0</span>
+                </p>
+              </div>
+              <i class="fas fa-futbol text-orange-600 text-3xl opacity-20"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Data -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Últimos Jugadores</h3>
+            <div id="recent-jugadores" class="space-y-3">
+              <p class="text-gray-500 text-center py-4">Cargando...</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Equipos Registrados</h3>
+            <div id="recent-equipos" class="space-y-3">
+              <p class="text-gray-500 text-center py-4">Cargando...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Jugadores Section -->
+      <section id="jugadores" class="section-content hidden">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-3xl font-bold text-gray-800">Jugadores</h2>
+          <button
+            id="btn-nuevo-jugador"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+          >
+            <i class="fas fa-plus"></i> Nuevo Jugador
+          </button>
+        </div>
+
+        <!-- Search & Filter -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input
+              type="text"
+              id="search-nombre"
+              placeholder="Buscar por nombre..."
+              class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <input
+              type="text"
+              id="search-nacionalidad"
+              placeholder="Filtrar por nacionalidad..."
+              class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <button
+              id="btn-filtrar-jugadores"
+              class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+            >
+              <i class="fas fa-search"></i> Buscar
+            </button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+          <table class="w-full">
+            <thead class="bg-gray-100 border-b-2 border-gray-300">
+              <tr>
+                <th class="px-6 py-3 text-left text-gray-700 font-semibold">ID</th>
+                <th class="px-6 py-3 text-left text-gray-700 font-semibold">Nombre</th>
+                <th class="px-6 py-3 text-left text-gray-700 font-semibold">Nacionalidad</th>
+                <th class="px-6 py-3 text-left text-gray-700 font-semibold">Fecha Nacimiento</th>
+                <th class="px-6 py-3 text-left text-gray-700 font-semibold">Equipo ID</th>
+                <th class="px-6 py-3 text-center text-gray-700 font-semibold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="table-jugadores">
+              <tr>
+                <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                  Cargando jugadores...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination-jugadores" class="flex justify-center gap-2 mt-6"></div>
+      </section>
+
+      <!-- Equipos Section -->
+      <section id="equipos" class="section-content hidden">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-3xl font-bold text-gray-800">Equipos</h2>
+          <button
+            id="btn-nuevo-equipo"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+          >
+            <i class="fas fa-plus"></i> Nuevo Equipo
+          </button>
+        </div>
+
+        <!-- Search -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+          <input
+            type="text"
+            id="search-equipo-nombre"
+            placeholder="Buscar equipo..."
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+          />
+        </div>
+
+        <!-- Grid -->
+        <div id="grid-equipos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <p class="col-span-full text-center text-gray-500 py-8">Cargando equipos...</p>
+        </div>
+      </section>
+
+      <!-- Posiciones Section -->
+      <section id="posiciones" class="section-content hidden">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Tabla de Posiciones</h2>
+
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+          <table class="w-full">
+            <thead class="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+              <tr>
+                <th class="px-6 py-3 text-center font-semibold">Pos</th>
+                <th class="px-6 py-3 text-left font-semibold">Equipo</th>
+                <th class="px-6 py-3 text-center font-semibold">PJ</th>
+                <th class="px-6 py-3 text-center font-semibold">PG</th>
+                <th class="px-6 py-3 text-center font-semibold">PE</th>
+                <th class="px-6 py-3 text-center font-semibold">PP</th>
+                <th class="px-6 py-3 text-center font-semibold">GF</th>
+                <th class="px-6 py-3 text-center font-semibold">GC</th>
+                <th class="px-6 py-3 text-center font-semibold">DIF</th>
+                <th class="px-6 py-3 text-center font-semibold text-yellow-300 font-bold">PTS</th>
+              </tr>
+            </thead>
+            <tbody id="table-posiciones">
+              <tr>
+                <td colspan="10" class="px-6 py-4 text-center text-gray-500">
+                  Cargando tabla de posiciones...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Modal Crear Jugador -->
+    <div id="modal-jugador" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+      <div class="bg-white rounded-lg shadow-lg p-8 w-96 max-h-96 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-2xl font-bold text-gray-800">Nuevo Jugador</h3>
+          <button id="close-modal-jugador" class="text-gray-500 hover:text-gray-700 text-2xl">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form id="form-jugador" class="space-y-4">
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Nombre *</label>
+            <input
+              type="text"
+              id="input-jugador-nombre"
+              required
+              placeholder="Ej: Cristiano Ronaldo"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Fecha de Nacimiento *</label>
+            <input
+              type="date"
+              id="input-jugador-fecha"
+              required
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Nacionalidad *</label>
+            <input
+              type="text"
+              id="input-jugador-nacionalidad"
+              required
+              placeholder="Ej: Portugal"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Equipo *</label>
+            <select
+              id="input-jugador-equipo"
+              required
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="">Seleccionar equipo...</option>
+            </select>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button
+              type="button"
+              id="btn-cancelar-jugador"
+              class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-semibold transition"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+            >
+              <i class="fas fa-save"></i> Guardar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Crear Equipo -->
+    <div id="modal-equipo" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+      <div class="bg-white rounded-lg shadow-lg p-8 w-96">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-2xl font-bold text-gray-800">Nuevo Equipo</h3>
+          <button id="close-modal-equipo" class="text-gray-500 hover:text-gray-700 text-2xl">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form id="form-equipo" class="space-y-4">
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Nombre del Equipo *</label>
+            <input
+              type="text"
+              id="input-equipo-nombre"
+              required
+              placeholder="Ej: Manchester United"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Estadio *</label>
+            <input
+              type="text"
+              id="input-equipo-estadio"
+              required
+              placeholder="Ej: Old Trafford"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-semibold mb-2">Año de Fundación *</label>
+            <input
+              type="number"
+              id="input-equipo-fundacion"
+              required
+              min="1800"
+              :max="currentYear"
+              placeholder="Ej: 1878"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <p class="text-xs text-gray-500 mt-1">Debe ser entre 1800 y el año actual</p>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button
+              type="button"
+              id="btn-cancelar-equipo"
+              class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-semibold transition"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+            >
+              <i class="fas fa-save"></i> Guardar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div
+      id="loading-overlay"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <div class="bg-white rounded-lg p-8">
+        <i class="fas fa-spinner fa-spin text-blue-600 text-4xl"></i>
+        <p class="text-gray-700 font-semibold mt-4">Cargando...</p>
+      </div>
+    </div>
+
+    <script src="/js/main.js"></script>
+  </body>
+</html>
