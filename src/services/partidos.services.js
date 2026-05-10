@@ -1,27 +1,23 @@
 import { ResourceNotFound } from "../errors/resource-not-found-error.js";
-import db from "../db/database.js";
-
-// La instancia de sequelize es la que tiene los modelos según tu seed.js
-const sequelize = db.sequelize || db; 
-const Partido = sequelize.models.Partido;
-
-if (!Partido) {
-    // Si esto sale en la terminal, es que db.js no está exportando sequelize correctamente
-    console.error("❌ El modelo Partido no se encontró en sequelize.models");
-}
+import sequelize from "../db/database.js";
 
 const DEFAULT_LIMIT = 20;
 
-// ... el resto de tus funciones (getPartidos, insertarPartido, etc.) 
-// asegurate de que usen la variable 'Partido' que definimos arriba.
 const getPartidos = async (pagination = {}) => {
   const page = Number(pagination.page) || 1;
   const limit = Number(pagination.limit) || DEFAULT_LIMIT;
   const offset = (page - 1) * limit;
 
-  // Usamos el modelo directamente si ya lo extrajimos
-  const resultado = await Partido.findAndCountAll({
-    attributes: ["Id", "Fecha", "HoraInicio", "EquipoLocalId", "EquipoVisitanteId", "Terminado", "Resultado"],
+  const resultado = await sequelize.models.Partido.findAndCountAll({
+    attributes: [
+      "Id",
+      "Fecha",
+      "HoraInicio",
+      "EquipoLocalId",
+      "EquipoVisitanteId",
+      "Terminado",
+      "Resultado",
+    ],
     order: [["Fecha", "DESC"]],
     limit,
     offset,
@@ -47,7 +43,7 @@ const getPartidos = async (pagination = {}) => {
 };
 
 const insertarPartido = async (partidoCmd) => {
-  const resultado = await Partido.create({
+  const resultado = await sequelize.models.Partido.create({
     Fecha: partidoCmd.fecha,
     HoraInicio: partidoCmd.horaInicio,
     EquipoLocalId: partidoCmd.equipoLocalId,
@@ -68,7 +64,9 @@ const insertarPartido = async (partidoCmd) => {
 };
 
 const editarPartido = async (partidoCmd) => {
-  const partido = await Partido.findByPk(partidoCmd.id);
+  const partido = await sequelize.models.Partido.findOne({
+    where: { Id: partidoCmd.id },
+  });
 
   if (!partido) {
     throw new ResourceNotFound("Partido no encontrado");
@@ -82,24 +80,30 @@ const editarPartido = async (partidoCmd) => {
   if (typeof partidoCmd.terminado !== "undefined") cambios.Terminado = partidoCmd.terminado;
   if (partidoCmd.resultado) cambios.Resultado = partidoCmd.resultado;
 
-  await partido.update(cambios);
+  await sequelize.models.Partido.update(cambios, {
+    where: { Id: partidoCmd.id },
+  });
+
   return { id: partidoCmd.id };
 };
 
 const eliminarPartido = async (id) => {
-  const filasBorradas = await Partido.destroy({ where: { Id: id } });
+  const partido = await sequelize.models.Partido.findOne({
+    where: { Id: id },
+  });
 
-  if (filasBorradas === 0) {
+  if (!partido) {
     throw new ResourceNotFound("Partido no encontrado");
   }
+
+  await sequelize.models.Partido.destroy({ where: { Id: id } });
 
   return { id };
 };
 
-// Juntamos todo en el objeto de exportación
 const partidosService = {
   getPartidos,
-  insertarPartido, // Asegurate que en la ruta llames a insertarPartido y no crearPartido
+  insertarPartido,
   editarPartido,
   eliminarPartido,
 };
