@@ -207,8 +207,84 @@ document.getElementById("form-partido")?.addEventListener("submit", async (e) =>
     }
 });
 
+// --- Eventos para abrir Modales ---
+
+// Jugadores
+document.getElementById("btn-nuevo-jugador")?.addEventListener("click", () => {
+    cargarEquiposEnSelect("input-jugador-equipo"); // Llenamos el select antes de abrir
+    modalJugador.classList.remove("hidden");
+});
+
+// Equipos
+document.getElementById("btn-nuevo-equipo")?.addEventListener("click", () => {
+    modalEquipo.classList.remove("hidden");
+});
+
+// --- Eventos para cerrar Modales (Botones cancelar y X) ---
+
+document.getElementById("close-modal-jugador")?.addEventListener("click", () => modalJugador.classList.add("hidden"));
+document.getElementById("btn-cancelar-jugador")?.addEventListener("click", () => modalJugador.classList.add("hidden"));
+
+document.getElementById("close-modal-equipo")?.addEventListener("click", () => modalEquipo.classList.add("hidden"));
+document.getElementById("btn-cancelar-equipo")?.addEventListener("click", () => modalEquipo.classList.add("hidden"));
 document.getElementById("close-modal-partido")?.addEventListener("click", () => {
     modalPartido.classList.add("hidden");
+});
+
+const cargarEquiposEnSelect = async (selectId) => {
+    const equipos = await fetchAPI("/equipos");
+    const select = document.getElementById(selectId);
+    if (equipos && select) {
+        select.innerHTML = '<option value="">Seleccionar equipo...</option>' + 
+            equipos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+    }
+};
+
+// Guardar Nuevo Jugador
+document.getElementById("form-jugador")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+        nombre: document.getElementById("input-jugador-nombre").value,
+        fechaNacimiento: document.getElementById("input-jugador-fecha").value,
+        nacionalidad: document.getElementById("input-jugador-nacionalidad").value,
+        equipoId: parseInt(document.getElementById("input-jugador-equipo").value)
+    };
+
+    const res = await fetchAPI("/jugadores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (res) {
+        showToast("¡Jugador creado!");
+        modalJugador.classList.add("hidden");
+        loadJugadores(); // Refrescamos la tabla
+        loadDashboard(); // Actualizamos contadores
+    }
+});
+
+// Guardar Nuevo Equipo
+document.getElementById("form-equipo")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+        nombre: document.getElementById("input-equipo-nombre").value,
+        estadio: document.getElementById("input-equipo-estadio").value,
+        fundacion: `${document.getElementById("input-equipo-fundacion").value}-01-01`
+    };
+
+    const res = await fetchAPI("/equipos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (res) {
+        showToast("¡Equipo creado!");
+        modalEquipo.classList.add("hidden");
+        loadEquipos();
+        loadDashboard();
+    }
 });
 
 // Inicialización
