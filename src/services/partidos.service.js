@@ -1,107 +1,117 @@
 import { ResourceNotFound } from "../errors/resource-not-found-error.js";
-import db from "../db/database.js";
+import sequelize from "../db/database.js";
 
-// La instancia de sequelize es la que tiene los modelos según tu seed.js
-const sequelize = db.sequelize || db; 
-const Partido = sequelize.models.Partido;
+// Extraemos los modelos una sola vez para usarlos en todo el archivo
+const { Partido, Equipo } = sequelize.models;
 
-if (!Partido) {
-    // Si esto sale en la terminal, es que db.js no está exportando sequelize correctamente
-    console.error("❌ El modelo Partido no se encontró en sequelize.models");
+// Validación de seguridad para la consola
+if (!Partido || !Equipo) {
+    console.error("❌ Error: No se cargaron los modelos Partido o Equipo en sequelize.models");
 }
 
-const DEFAULT_LIMIT = 20;
+const getPartidos = async () => {
+    const resultado = await Partido.findAndCountAll({
+        include: [
+            { 
+                model: Equipo, 
+                as: "EquipoLocal", 
+                attributes: ["Nombre"] 
+            },
+            { 
+                model: Equipo, 
+                as: "EquipoVisitante", 
+                attributes: ["Nombre"] 
+            }
+        ],
+        order: [["Fecha", "DESC"]],
+    });
 
-// ... el resto de tus funciones (getPartidos, insertarPartido, etc.) 
-// asegurate de que usen la variable 'Partido' que definimos arriba.
-const getPartidos = async (pagination = {}) => {
-  const page = Number(pagination.page) || 1;
-  const limit = Number(pagination.limit) || DEFAULT_LIMIT;
-  const offset = (page - 1) * limit;
-
-  // Usamos el modelo directamente si ya lo extrajimos
-  const resultado = await Partido.findAndCountAll({
-    attributes: ["Id", "Fecha", "HoraInicio", "EquipoLocalId", "EquipoVisitanteId", "Terminado", "Resultado"],
-    order: [["Fecha", "DESC"]],
-    limit,
-    offset,
-  });
-
-  return {
-    meta: {
-      page,
-      limit,
-      total: resultado.count,
-      totalPages: Math.ceil(resultado.count / limit),
-    },
-    data: resultado.rows.map((p) => ({
-      id: p.Id,
-      fecha: p.Fecha,
-      horaInicio: p.HoraInicio,
-      equipoLocalId: p.EquipoLocalId,
-      equipoVisitanteId: p.EquipoVisitanteId,
-      terminado: p.Terminado,
-      resultado: p.Resultado,
-    })),
-  };
+    return {
+        data: resultado.rows.map((p) => ({
+            id: p.Id,
+            fecha: p.Fecha,
+            equipoLocal: p.EquipoLocal ? p.EquipoLocal.Nombre : "Desconocido",
+            equipoVisitante: p.EquipoVisitante ? p.EquipoVisitante.Nombre : "Desconocido",
+            resultado: p.Resultado,
+        })),
+    };
 };
 
-const insertarPartido = async (partidoCmd) => {
-  const resultado = await Partido.create({
-    Fecha: partidoCmd.fecha,
-    HoraInicio: partidoCmd.horaInicio,
-    EquipoLocalId: partidoCmd.equipoLocalId,
-    EquipoVisitanteId: partidoCmd.equipoVisitanteId,
-    Terminado: partidoCmd.terminado || false,
-    Resultado: partidoCmd.resultado,
-  });
+const insertarPartido = async (datos) => {
+    const nuevo = await Partido.create({
+        Fecha: datos.fecha,
+        HoraInicio: "20:00",
+        EquipoLocalId: datos.equipoLocalId,
+        EquipoVisitanteId: datos.equipoVisitanteId,
+        Resultado: datos.resultado,
+        Terminado: true
+    });
 
-  return {
-    id: resultado.Id,
-    fecha: resultado.Fecha,
-    horaInicio: resultado.HoraInicio,
-    equipoLocalId: resultado.EquipoLocalId,
-    equipoVisitanteId: resultado.EquipoVisitanteId,
-    terminado: resultado.Terminado,
-    resultado: resultado.Resultado,
-  };
+    // Lógica de puntos: actualizamos a los equipos directamente
+    const [gL, gV] = datos.resultado.split("-").map(Number);
+    const local = await Equipo.findByPk(datos.equipoLocalId);
+    const visitante = await Equipo.findByPk(datos.equipoVisitanteId);
+
+    if (local && visitante) {
+        local.PJ += 1; visitante.PJ += 1;
+        local.GF += gL; local.GC += gV;
+        visitante.GF += gV; visitante.GC += gL;
+
+        if (gL > gV) {
+            local.PG += 1; local.Puntos += 3;
+            visitante.PP += 1;
+        } else if (gL < gV) {
+            visitante.PG += 1; visitante.Puntos += 3;
+            local.PP += 1;
+        } else {
+            local.PE += 1; local.Puntos += 1;
+            visitante.PE += 1; visitante.Puntos += 1;
+        }
+
+        local.DIF = local.GF - local.GC;
+        visitante.DIF = visitante.GF - visitante.GC;
+
+        await local.save();
+        await visitante.save();
+    }
+
+    return nuevo;
 };
 
 const editarPartido = async (partidoCmd) => {
-  const partido = await Partido.findByPk(partidoCmd.id);
+    const partido = await Partido.findByPk(partidoCmd.id);
 
-  if (!partido) {
-    throw new ResourceNotFound("Partido no encontrado");
-  }
+    if (!partido) {
+        throw new ResourceNotFound("Partido no encontrado");
+    }
 
-  const cambios = {};
-  if (partidoCmd.fecha) cambios.Fecha = partidoCmd.fecha;
-  if (partidoCmd.horaInicio) cambios.HoraInicio = partidoCmd.horaInicio;
-  if (partidoCmd.equipoLocalId) cambios.EquipoLocalId = partidoCmd.equipoLocalId;
-  if (partidoCmd.equipoVisitanteId) cambios.EquipoVisitanteId = partidoCmd.equipoVisitanteId;
-  if (typeof partidoCmd.terminado !== "undefined") cambios.Terminado = partidoCmd.terminado;
-  if (partidoCmd.resultado) cambios.Resultado = partidoCmd.resultado;
+    const cambios = {};
+    if (partidoCmd.fecha) cambios.Fecha = partidoCmd.fecha;
+    if (partidoCmd.horaInicio) cambios.HoraInicio = partidoCmd.horaInicio;
+    if (partidoCmd.equipoLocalId) cambios.EquipoLocalId = partidoCmd.equipoLocalId;
+    if (partidoCmd.equipoVisitanteId) cambios.EquipoVisitanteId = partidoCmd.equipoVisitanteId;
+    if (typeof partidoCmd.terminado !== "undefined") cambios.Terminado = partidoCmd.terminado;
+    if (partidoCmd.resultado) cambios.Resultado = partidoCmd.resultado;
 
-  await partido.update(cambios);
-  return { id: partidoCmd.id };
+    await partido.update(cambios);
+    return { id: partidoCmd.id };
 };
 
 const eliminarPartido = async (id) => {
-  const filasBorradas = await Partido.destroy({ where: { Id: id } });
+    const filasBorradas = await Partido.destroy({ where: { Id: id } });
 
-  if (filasBorradas === 0) {
-    throw new ResourceNotFound("Partido no encontrado");
-  }
+    if (filasBorradas === 0) {
+        throw new ResourceNotFound("Partido no encontrado");
+    }
 
-  return { id };
+    return { id };
 };
 
-// Juntamos todo en el objeto de exportación
 const partidosService = {
-  getPartidos,
-  insertarPartido, // Asegurate que en la ruta llames a insertarPartido y no crearPartido
-  editarPartido,
-  eliminarPartido,
+    getPartidos,
+    insertarPartido,
+    editarPartido,
+    eliminarPartido,
 };
 
 export default partidosService;

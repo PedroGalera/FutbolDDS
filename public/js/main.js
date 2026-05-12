@@ -1,16 +1,12 @@
 // API Configuration
 const API_BASE_URL = "/api"; 
 
-// State
-let equiposList = [];
-
 // DOM Elements
 const navLinks = document.querySelectorAll(".nav-link");
 const sections = document.querySelectorAll(".section-content");
 const loadingOverlay = document.getElementById("loading-overlay");
 const toastContainer = document.getElementById("toast-container");
 
-// Modales
 const modalJugador = document.getElementById("modal-jugador");
 const modalEquipo = document.getElementById("modal-equipo");
 const modalPartido = document.getElementById("modal-partido");
@@ -37,7 +33,6 @@ const fetchAPI = async (endpoint, options = {}) => {
         return await response.json();
     } catch (error) {
         console.error(`Error en fetch ${endpoint}:`, error);
-        // No mostramos toast de error para entrenadores si falla, solo lo ignoramos
         if (!endpoint.includes("entrenadores")) {
             showToast(error.message, "error");
         }
@@ -57,7 +52,6 @@ const showSection = (sectionId) => {
 const loadDashboard = async () => {
     showSection("dashboard");
     
-    // Ejecutamos las peticiones. Si entrenadores falla, devuelve null pero no rompe el resto.
     const [equipos, jugadores, entrenadores, partidos] = await Promise.all([
         fetchAPI("/equipos"),
         fetchAPI("/jugadores?limit=100"),
@@ -65,13 +59,11 @@ const loadDashboard = async () => {
         fetchAPI("/partidos?limit=100")
     ]);
 
-    // Actualizar contadores (si fallan, ponen 0 en vez de quedarse en "Cargando")
     document.getElementById("total-equipos").textContent = equipos?.length || 0;
     document.getElementById("total-jugadores").textContent = jugadores?.data?.length || 0;
     document.getElementById("total-entrenadores").textContent = entrenadores?.length || 0;
     document.getElementById("total-partidos").textContent = partidos?.data?.length || 0;
 
-    // Actualizar listas rápidas del dashboard
     actualizarListasDashboard(jugadores?.data, equipos);
 };
 
@@ -104,7 +96,7 @@ const loadJugadores = async () => {
             <td class="px-6 py-4 font-bold">${j.nombre}</td>
             <td class="px-6 py-4">${j.nacionalidad}</td>
             <td class="px-6 py-4 text-center">
-                <button class="text-red-600"><i class="fas fa-trash"></i></button>
+                <button class="text-red-600" onclick="eliminarJugador(${j.id})"><i class="fas fa-trash"></i></button>
             </td>
         </tr>
     `).join("");
@@ -150,9 +142,9 @@ const loadPartidos = async () => {
     tbody.innerHTML = partidos.map(p => `
         <tr class="border-b">
             <td class="px-6 py-4">${new Date(p.fecha).toLocaleDateString()}</td>
-            <td class="px-6 py-4 text-right font-semibold">${p.equipoLocalId}</td>
+            <td class="px-6 py-4 text-right font-bold text-blue-900">${p.equipoLocal}</td>
             <td class="px-6 py-4 text-center font-mono font-bold bg-gray-100 text-lg">${p.resultado}</td>
-            <td class="px-6 py-4 font-semibold">${p.equipoVisitanteId}</td>
+            <td class="px-6 py-4 font-bold text-blue-900">${p.equipoVisitante}</td>
         </tr>
     `).join("");
 };
@@ -173,8 +165,9 @@ navLinks.forEach(link => {
 document.getElementById("btn-nuevo-partido")?.addEventListener("click", async () => {
     const equipos = await fetchAPI("/equipos");
     if (!equipos) return;
+    // Usamos Id en mayúscula si así viene del backend
     const html = '<option value="">Seleccionar...</option>' + 
-                 equipos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join("");
+                 equipos.map(e => `<option value="${e.Id}">${e.Nombre}</option>`).join("");
     document.getElementById("input-partido-local").innerHTML = html;
     document.getElementById("input-partido-visitante").innerHTML = html;
     modalPartido.classList.remove("hidden");
@@ -185,10 +178,9 @@ document.getElementById("form-partido")?.addEventListener("submit", async (e) =>
     const payload = {
         equipoLocalId: parseInt(document.getElementById("input-partido-local").value),
         equipoVisitanteId: parseInt(document.getElementById("input-partido-visitante").value),
+        // IMPORTANTE: Enviamos el resultado como string para que el service lo parsee
         resultado: `${document.getElementById("input-goles-local").value}-${document.getElementById("input-goles-visitante").value}`,
-        fecha: new Date().toISOString().split('T')[0],
-        horaInicio: "20:00",
-        terminado: true
+        fecha: new Date().toISOString().split('T')[0]
     };
 
     const res = await fetchAPI("/partidos", {
@@ -200,43 +192,38 @@ document.getElementById("form-partido")?.addEventListener("submit", async (e) =>
     if (res) {
         showToast("¡Partido registrado y tabla actualizada!");
         modalPartido.classList.add("hidden");
-        // REFRESCAMOS TODO:
-        await loadPartidos();   // Refresca la lista de partidos
-        await loadPosiciones(); // Recalcula la tabla de puntos
-        await loadDashboard();  // Actualiza los contadores del Dashboard
+        document.getElementById("form-partido").reset();
+        await loadPartidos();
+        await loadPosiciones();
+        await loadDashboard();
     }
 });
 
 // --- Eventos para abrir Modales ---
 
-// Jugadores
 document.getElementById("btn-nuevo-jugador")?.addEventListener("click", () => {
-    cargarEquiposEnSelect("input-jugador-equipo"); // Llenamos el select antes de abrir
+    cargarEquiposEnSelect("input-jugador-equipo");
     modalJugador.classList.remove("hidden");
 });
 
-// Equipos
 document.getElementById("btn-nuevo-equipo")?.addEventListener("click", () => {
     modalEquipo.classList.remove("hidden");
 });
 
-// --- Eventos para cerrar Modales (Botones cancelar y X) ---
+// --- Eventos para cerrar Modales ---
 
 document.getElementById("close-modal-jugador")?.addEventListener("click", () => modalJugador.classList.add("hidden"));
 document.getElementById("btn-cancelar-jugador")?.addEventListener("click", () => modalJugador.classList.add("hidden"));
-
 document.getElementById("close-modal-equipo")?.addEventListener("click", () => modalEquipo.classList.add("hidden"));
 document.getElementById("btn-cancelar-equipo")?.addEventListener("click", () => modalEquipo.classList.add("hidden"));
-document.getElementById("close-modal-partido")?.addEventListener("click", () => {
-    modalPartido.classList.add("hidden");
-});
+document.getElementById("close-modal-partido")?.addEventListener("click", () => modalPartido.classList.add("hidden"));
 
 const cargarEquiposEnSelect = async (selectId) => {
     const equipos = await fetchAPI("/equipos");
     const select = document.getElementById(selectId);
     if (equipos && select) {
         select.innerHTML = '<option value="">Seleccionar equipo...</option>' + 
-            equipos.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+            equipos.map(e => `<option value="${e.Id}">${e.Nombre}</option>`).join('');
     }
 };
 
@@ -259,8 +246,9 @@ document.getElementById("form-jugador")?.addEventListener("submit", async (e) =>
     if (res) {
         showToast("¡Jugador creado!");
         modalJugador.classList.add("hidden");
-        loadJugadores(); // Refrescamos la tabla
-        loadDashboard(); // Actualizamos contadores
+        document.getElementById("form-jugador").reset();
+        loadJugadores();
+        loadDashboard();
     }
 });
 
@@ -282,10 +270,24 @@ document.getElementById("form-equipo")?.addEventListener("submit", async (e) => 
     if (res) {
         showToast("¡Equipo creado!");
         modalEquipo.classList.add("hidden");
+        document.getElementById("form-equipo").reset();
         loadEquipos();
         loadDashboard();
     }
 });
+
+const eliminarJugador = async (id) => {
+    const res = await fetchAPI(`/jugadores/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" }
+    });
+
+    if (res) {
+        showToast("¡Jugador eliminado!");
+        loadJugadores();
+        loadDashboard();
+    }
+};
 
 // Inicialización
 window.addEventListener("DOMContentLoaded", loadDashboard);

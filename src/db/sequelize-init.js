@@ -258,6 +258,11 @@ const Partido = sequelize.define(
     timestamps: false,
   }
 );
+const { Partido, Equipo } = sequelize.models;
+
+// Asociaciones: equipo_local y equipo_visitante apuntan a Equipo
+Partido.belongsTo(Equipo, { as: 'Local', foreignKey: 'equipo_local' });
+Partido.belongsTo(Equipo, { as: 'Visitante', foreignKey: 'equipo_visitante' });
 
 // Asociaciones
 Equipo.hasOne(Entrenador, { foreignKey: 'equipo' });
