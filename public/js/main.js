@@ -95,9 +95,15 @@ const loadJugadores = async () => {
             <td class="px-6 py-4">${j.id}</td>
             <td class="px-6 py-4 font-bold">${j.nombre}</td>
             <td class="px-6 py-4">${j.nacionalidad}</td>
+            <td class="px-6 py-4">${j.fechaNacimiento || '-'}</td>
+            <td class="px-6 py-4">${j.equipoId || '-'}</td>
             <td class="px-6 py-4 text-center">
                 <button class="text-red-600" onclick="eliminarJugador(${j.id})"><i class="fas fa-trash"></i></button>
             </td>
+            <td class="px-6 py-4 text-center">
+                <button class="text-blue-600 hover:text-blue-800 transition" onclick="prepararEdicion(${j.id})"><i class="fas fa-edit"></i></button>
+            </td>
+            
         </tr>
     `).join("");
 };
@@ -288,6 +294,32 @@ const eliminarJugador = async (id) => {
         loadDashboard();
     }
 };
+const prepararEdicion = async (id) => {
+    // 1. Pedimos el nuevo nombre (Esto es rústico con un prompt para probar rápido, después podés usar un modal)
+    const nuevoNombre = prompt("Ingresá el nuevo nombre del jugador:");
+    if (!nuevoNombre) return; // Si cancela, no hace nada
 
+    // 2. Armamos el objeto con los cambios
+    const datosModificados = {
+        id: id,
+        nombre: nuevoNombre
+        // Acá podrías agregar nacionalidad, etc.
+    };
+
+    // 3. Mandamos la petición PUT al backend usando tu función fetchAPI
+    // Esto va a pegar en router.put("/:id") de tus rutas Express
+    const respuesta = await fetchAPI(`/jugadores/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(datosModificados),
+        headers: {
+            "Content-Type": "application/json"
+        }
+    });
+
+    if (respuesta) {
+        alert("Jugador actualizado con éxito");
+        loadJugadores(); // Recargamos la tabla para ver los cambios reflejados
+    }
+};
 // Inicialización
 window.addEventListener("DOMContentLoaded", loadDashboard);
