@@ -85,27 +85,34 @@ const actualizarListasDashboard = (jugadores, equipos) => {
 
 // ==================== Secciones ====================
 
-const loadJugadores = async () => {
+const loadJugadores = async (filters = {}) => {
     showSection("jugadores");
-    const data = await fetchAPI("/jugadores");
+    const params = new URLSearchParams();
+    if (filters.nombre) params.append("nombre", filters.nombre);
+    if (filters.nacionalidad) params.append("nacionalidad", filters.nacionalidad);
+
+    const endpoint = params.toString() ? `/jugadores?${params.toString()}` : "/jugadores";
+    const data = await fetchAPI(endpoint);
     if (!data) return;
+
+    const jugadores = Array.isArray(data.data) ? data.data : [];
     const tbody = document.getElementById("table-jugadores");
-    tbody.innerHTML = data.data.map(j => `
-        <tr class="border-b">
-            <td class="px-6 py-4">${j.id}</td>
-            <td class="px-6 py-4 font-bold">${j.nombre}</td>
-            <td class="px-6 py-4">${j.nacionalidad}</td>
-            <td class="px-6 py-4">${j.fechaNacimiento || '-'}</td>
-            <td class="px-6 py-4">${j.equipoId || '-'}</td>
-            <td class="px-6 py-4 text-center">
-                <button class="text-red-600" onclick="eliminarJugador(${j.id})"><i class="fas fa-trash"></i></button>
-            </td>
-            <td class="px-6 py-4 text-center">
-                <button class="text-blue-600 hover:text-blue-800 transition" onclick="prepararEdicion(${j.id})"><i class="fas fa-edit"></i></button>
-            </td>
-            
-        </tr>
-    `).join("");
+    tbody.innerHTML = jugadores.map(j => {
+        const equipoNombre = j.Equipo?.Nombre ?? j.Equipo?.nombre ?? 'Sin equipo';
+        return `
+            <tr class="border-b">
+                <td class="px-6 py-4">${j.id}</td>
+                <td class="px-6 py-4 font-bold">${j.nombre}</td>
+                <td class="px-6 py-4">${j.nacionalidad}</td>
+                <td class="px-6 py-4">${j.fechaNacimiento || '-'}</td>
+                <td class="px-6 py-4">${equipoNombre}</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button class="text-red-600" onclick="eliminarJugador(${j.id})"><i class="fas fa-trash"></i></button>
+                    <button class="text-blue-600 hover:text-blue-800 transition" onclick="prepararEdicion(${j.id})"><i class="fas fa-edit"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join("");
 };
 
 const loadEquipos = async () => {
@@ -168,6 +175,17 @@ navLinks.forEach(link => {
     });
 });
 
+document.getElementById("btn-filtrar-jugadores")?.addEventListener("click", async () => {
+    const nombre = document.getElementById("search-nombre").value.trim();
+    const nacionalidad = document.getElementById("search-nacionalidad").value.trim();
+
+    const filters = {};
+    if (nombre) filters.nombre = nombre;
+    if (nacionalidad) filters.nacionalidad = nacionalidad;
+
+    await loadJugadores(filters);
+});
+
 document.getElementById("btn-nuevo-partido")?.addEventListener("click", async () => {
     const equipos = await fetchAPI("/equipos");
     if (!equipos) return;
@@ -224,12 +242,17 @@ document.getElementById("close-modal-equipo")?.addEventListener("click", () => m
 document.getElementById("btn-cancelar-equipo")?.addEventListener("click", () => modalEquipo.classList.add("hidden"));
 document.getElementById("close-modal-partido")?.addEventListener("click", () => modalPartido.classList.add("hidden"));
 
-const cargarEquiposEnSelect = async (selectId) => {
+const cargarEquiposEnSelect = async (selectId, selectedId = null) => {
     const equipos = await fetchAPI("/equipos");
     const select = document.getElementById(selectId);
+    const selectedValue = selectedId !== null ? String(selectedId) : null;
     if (equipos && select) {
         select.innerHTML = '<option value="">Seleccionar equipo...</option>' + 
-            equipos.map(e => `<option value="${e.Id}">${e.Nombre}</option>`).join('');
+            equipos.map(e => {
+                const teamId = e.Id ?? e.id;
+                const teamName = e.Nombre ?? e.nombre;
+                return `<option value="${teamId}" ${selectedValue === String(teamId) ? 'selected' : ''}>${teamName}</option>`;
+            }).join('');
     }
 };
 
@@ -294,20 +317,49 @@ const eliminarJugador = async (id) => {
         loadDashboard();
     }
 };
-const prepararEdicion = async (id) => {
-    // 1. Pedimos el nuevo nombre (Esto es rústico con un prompt para probar rápido, después podés usar un modal)
-    const nuevoNombre = prompt("Ingresá el nuevo nombre del jugador:");
-    if (!nuevoNombre) return; // Si cancela, no hace nada
+// 1. Capturamos los elementos del DOM del modal
+const modalEditar = document.getElementById("modal-editar-jugador");
+const formEditar = document.getElementById("form-editar-jugador");
+const btnCerrarModal = document.getElementById("btn-cerrar-modal");
+const btnCancelarModal = document.getElementById("btn-cancelar-modal");
 
-    // 2. Armamos el objeto con los cambios
+// Función que se ejecuta al tocar el ícono del lápiz en la tabla
+const prepararEdicion = async (id) => {
+    // Buscamos los datos del jugador actual para precargar el formulario
+    // Tu backend ya debería tener una ruta GET /api/jugadores/:id o podés buscarlo en el array local si lo tenés libre
+    const data = await fetchAPI(`/jugadores`); 
+    if (!data || !Array.isArray(data.data)) return alert("No se pudieron cargar los datos del jugador");
+    const jugador = data.data.find(j => j.id === id);
+    
+    if (!jugador) return alert("No se encontraron los datos del jugador");
+
+    // Rellenamos los inputs del modal con la info actual
+    document.getElementById("edit-jugador-id").value = jugador.id;
+    document.getElementById("edit-jugador-nombre").value = jugador.nombre;
+    document.getElementById("edit-jugador-fecha").value = jugador.fechaNacimiento || "";
+    document.getElementById("edit-jugador-nacionalidad").value = jugador.nacionalidad;
+    await cargarEquiposEnSelect("edit-jugador-equipo", jugador.equipoId);
+
+    // Mostramos el modal de forma nativa
+    modalEditar.showModal();
+};
+
+// Evento para procesar el envío del formulario (El botón "Guardar Cambios")
+formEditar.addEventListener("submit", async (e) => {
+    e.preventDefault(); // Evitamos que la página se recargue sola
+
+    const id = document.getElementById("edit-jugador-id").value;
+    
+    // Armamos el objeto con los datos modificados del formulario
     const datosModificados = {
-        id: id,
-        nombre: nuevoNombre
-        // Acá podrías agregar nacionalidad, etc.
+        id: Number(id),
+        nombre: document.getElementById("edit-jugador-nombre").value,
+        fechaNacimiento: document.getElementById("edit-jugador-fecha").value,
+        nacionalidad: document.getElementById("edit-jugador-nacionalidad").value,
+        equipoId: Number(document.getElementById("edit-jugador-equipo").value)
     };
 
-    // 3. Mandamos la petición PUT al backend usando tu función fetchAPI
-    // Esto va a pegar en router.put("/:id") de tus rutas Express
+    // Enviamos la petición PUT a tu jugador.route de Express
     const respuesta = await fetchAPI(`/jugadores/${id}`, {
         method: "PUT",
         body: JSON.stringify(datosModificados),
@@ -317,9 +369,14 @@ const prepararEdicion = async (id) => {
     });
 
     if (respuesta) {
+        modalEditar.close(); // Cerramos el modal
         alert("Jugador actualizado con éxito");
-        loadJugadores(); // Recargamos la tabla para ver los cambios reflejados
+        loadJugadores(); // Recargamos la tabla para ver el cambio reflejado
     }
-};
+});
+
+// Eventos para cerrar el modal si se arrepiente
+btnCerrarModal.addEventListener("click", () => modalEditar.close());
+btnCancelarModal.addEventListener("click", () => modalEditar.close());
 // Inicialización
 window.addEventListener("DOMContentLoaded", loadDashboard);

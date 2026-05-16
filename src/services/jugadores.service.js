@@ -51,6 +51,13 @@ const getJugadores = async (filters = {}, pagination = {}) => {
   const resultado = await sequelize.models.Jugador.findAndCountAll({
     where: whereQuery,
     attributes: ["Id", "Nombre", "FechaNacimiento", "Nacionalidad", "EquipoId"],
+    include: [
+      {
+        model: sequelize.models.Equipo,
+        attributes: ["Id", "Nombre"],
+        required: false,
+      },
+    ],
     order: [["Nombre", "ASC"]],
     limit,
     offset,
@@ -69,6 +76,7 @@ const getJugadores = async (filters = {}, pagination = {}) => {
       fechaNacimiento: j.FechaNacimiento,
       nacionalidad: j.Nacionalidad,
       equipoId: j.EquipoId,
+      Equipo: j.Equipo ? { Id: j.Equipo.Id, Nombre: j.Equipo.Nombre } : null,
     })),
   };
 };
